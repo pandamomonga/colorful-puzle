@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>カラフル写真パズル</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
+        .upload-button {
+            display: block;
+            width: 100%;
+            padding: 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 1.3em;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+
+        .upload-button:active {
+            background: #764ba2;
+            transform: scale(0.95);
+        }
+
+        .upload-icon {
+            font-size: 50px;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #fileInput {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+
+        .game-container {
+            display: none;
+            text-align: center;
+        }
+
+        .difficulty-buttons {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .difficulty-btn {
+            padding: 15px 25px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .easy {
+            background: #4ade80;
+            color: white;
+        }
+
+        .medium {
+            background: #facc15;
+            color: white;
+        }
+
+        .hard {
+            background: #f87171;
+            color: white;
+        }
+
+        .difficulty-btn:active {
+            transform: scale(0.95);
+        }
+
+        #puzzleContainer {
+            display: inline-block;
+            position: relative;
+            margin: 20px auto;
+            border: 5px solid #667eea;
+            border-radius: 15px;
+            background: #f0f0f0;
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            touch-action: none;
+        }
+
+        .puzzle-piece.dragging {
+            z-index: 2000;
+            transform: scale(1.1);
+            opacity: 0.8;
+        }
+
+        .puzzle-piece.correct {
+            pointer-events: none;
+            animation: correctAnimation 0.5s ease;
+            border-color: #4ade80;
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.6);
+        }
+
+        @keyframes correctAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2) rotate(10deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        .completion-message {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            z-index: 3000;
+            animation: celebrateAnimation 0.5s ease;
+        }
+
+        @keyframes celebrateAnimation {
+            0% { transform: translate(-50%, -50%) scale(0); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .completion-message h2 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+
+        .play-again-btn {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+
+        .play-again-btn:active {
+            background: #764ba2;
+            transform: scale(0.95);
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            top: -10px;
+            animation: fall linear;
+            pointer-events: none;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+
+        .timer {
+            font-size: 1.3em;
+            color: #667eea;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+
+        .debug-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 カラフル写真パズル 🧩</h1>
+        
+        <div class="upload-section" id="uploadSection">
+            <label for="fileInput" class="upload-button">
+                <span class="upload-icon">📸</span>
+                写真を選択してパズルを始める
+            </label>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="game-container" id="gameContainer">
+            <div class="timer" id="timer">時間: 0秒</div>
+            <div class="difficulty-buttons">
+                <button class="difficulty-btn easy" id="easyBtn">かんたん (2x2)</button>
+                <button class="difficulty-btn medium" id="mediumBtn">ふつう (3x3)</button>
+                <button class="difficulty-btn hard" id="hardBtn">むずかしい (4x4)</button>
+            </div>
+            <div id="puzzleContainer"></div>
+        </div>
+    </div>
+
+    <div class="completion-message" id="completionMessage">
+        <h2>🎉 完成! 🎉</h2>
+        <p style="font-size: 1.5em; color: #764ba2; margin-bottom: 20px;">素晴らしい！</p>
+        <p id="completionTime" style="font-size: 1.3em; margin-bottom: 20px;"></p>
+        <button class="play-again-btn" id="playAgainBtn">もう一度遊ぶ</button>
+        <button class="play-again-btn" id="changeImageBtn">別の写真で遊ぶ</button>
+    </div>
+
+    <div class="debug-info" id="debugInfo"></div>
+
+    <script>
+        // デバッグ情報表示
+        function debug(msg) {
+            console.log(msg);
+            const debugEl = document.getElementById('debugInfo');
+            debugEl.style.display = 'block';
+            debugEl.textContent = msg;
+            setTimeout(() => {
+                debugEl.style.display = 'none';
+            }, 3000);
+        }
+
+        let uploadedImage = null;
+        let puzzlePieces = [];
+        let gridSize = 2;
+        let startTime = null;
+        let timerInterval = null;
+        let draggedPiece = null;
+
+        // 要素の取得
+        const fileInput = document.getElementById('fileInput');
+        const uploadSection = document.getElementById('uploadSection');
+        const gameContainer = document.getElementById('gameContainer');
+        const puzzleContainer = document.getElementById('puzzleContainer');
+
+        // ファイル選択イベント
+        fileInput.addEventListener('change', function(e) {
+            debug('ファイル選択イベント発生');
+            if (e.target.files && e.target.files.length > 0) {
+                handleImageUpload(e.target.files[0]);
+            }
+        });
+
+        // 難易度ボタンのイベント
+        document.getElementById('easyBtn').addEventListener('click', () => startPuzzle(2));
+        document.getElementById('mediumBtn').addEventListener('click', () => startPuzzle(3));
+        document.getElementById('hardBtn').addEventListener('click', () => startPuzzle(4));
+
+        // 完了画面のボタンイベント
+        document.getElementById('playAgainBtn').addEventListener('click', resetGame);
+        document.getElementById('changeImageBtn').addEventListener('click', changeImage);
+
+        function handleImageUpload(file) {
+            debug('画像アップロード処理開始: ' + file.name);
+            
+            if (!file.type.startsWith('image/')) {
+                alert('画像ファイルを選択してください');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                debug('画像読み込み完了');
+                uploadedImage = new Image();
+                uploadedImage.onload = function() {
+                    debug('画像ロード完了');
+                    uploadSection.style.display = 'none';
+                    gameContainer.style.display = 'block';
+                };
+                uploadedImage.onerror = function() {
+                    debug('画像ロードエラー');
+                    alert('画像の読み込みに失敗しました');
+                };
+                uploadedImage.src = e.target.result;
+            };
+            reader.onerror = function() {
+                debug('ファイル読み込みエラー');
+                alert('ファイルの読み込みに失敗しました');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function startPuzzle(size) {
+            debug('パズル開始: ' + size + 'x' + size);
+            gridSize = size;
+            puzzleContainer.innerHTML = '';
+            puzzlePieces = [];
+            
+            // タイマー開始
+            startTime = Date.now();
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 100);
+            
+            // コンテナサイズの計算
+            const maxSize = Math.min(window.innerWidth * 0.9 - 40, window.innerHeight * 0.5, 500);
+            const aspectRatio = uploadedImage.width / uploadedImage.height;
+            
+            let containerWidth, containerHeight;
+            if (aspectRatio > 1) {
+                containerWidth = maxSize;
+                containerHeight = maxSize / aspectRatio;
+            } else {
+                containerHeight = maxSize;
+                containerWidth = maxSize * aspectRatio;
+            }
+            
+            puzzleContainer.style.width = containerWidth + 'px';
+            puzzleContainer.style.height = containerHeight + 'px';
+            
+            const pieceWidth = containerWidth / gridSize;
+            const pieceHeight = containerHeight / gridSize;
+            
+            // パズルピースを作成
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    const piece = createPuzzlePiece(row, col, pieceWidth, pieceHeight);
+                    puzzlePieces.push(piece);
+                    puzzleContainer.appendChild(piece);
+                }
+            }
+            
+            // ピースをシャッフル
+            setTimeout(() => shufflePieces(), 100);
+        }
+
+        function createPuzzlePiece(row, col, width, height) {
+            const piece = document.createElement('div');
+            piece.className = 'puzzle-piece';
+            piece.style.width = width + 'px';
+            piece.style.height = height + 'px';
+            
+            // Canvas作成
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // 画像を描画
+            ctx.drawImage(
+                uploadedImage,
+                (uploadedImage.width / gridSize) * col,
+                (uploadedImage.height / gridSize) * row,
+                uploadedImage.width / gridSize,
+                uploadedImage.height / gridSize,
+                0, 0, width, height
+            );
+            
+            // カラフルなオーバーレイ
+            const gradient = ctx.createLinearGradient(0, 0, width, height);
+            const colors = ['#ff006e', '#8338ec', '#3a86ff', '#06ffa5', '#ffbe0b', '#fb5607'];
+            gradient.addColorStop(0, colors[Math.floor(Math.random() * colors.length)] + '33');
+            gradient.addColorStop(1, colors[Math.floor(Math.random() * colors.length)] + '33');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+            
+            piece.style.backgroundImage = `url(${canvas.toDataURL()})`;
+            piece.style.backgroundSize = 'cover';
+            
+            // 正解位置を記録
+            piece.dataset.correctRow = row;
+            piece.dataset.correctCol = col;
+            piece.dataset.currentRow = row;
+            piece.dataset.currentCol = col;
+            
+            // タッチイベントを設定
+            piece.addEventListener('touchstart', handleTouchStart, {passive: false});
+            piece.addEventListener('touchmove', handleTouchMove, {passive: false});
+            piece.addEventListener('touchend', handleTouchEnd, {passive: false});
+            
+            // マウスイベントも設定（PC用）
+            piece.addEventListener('mousedown', handleMouseDown);
+            
+            return piece;
+        }
+
+        // タッチイベントハンドラー
+        let touchStartX, touchStartY;
+        let pieceStartX, pieceStartY;
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            draggedPiece = e.target;
+            draggedPiece.classList.add('dragging');
+            
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            
+            pieceStartX = draggedPiece.offsetLeft;
+            pieceStartY = draggedPiece.offsetTop;
+            
+            debug('タッチ開始');
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!draggedPiece) return;
+            
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - touchStartX;
+            const deltaY = touch.clientY - touchStartY;
+            
+            draggedPiece.style.left = (pieceStartX + deltaX) + 'px';
+            draggedPiece.style.top = (pieceStartY + deltaY) + 'px';
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            if (!draggedPiece) return;
+            
+            debug('タッチ終了');
+            draggedPiece.classList.remove('dragging');
+            checkPosition(draggedPiece);
+            draggedPiece = null;
+        }
+
+        // マウスイベントハンドラー（PC用）
+        function handleMouseDown(e) {
+            draggedPiece = e.target;
+            draggedPiece.classList.add('dragging');
+            
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startLeft = draggedPiece.offsetLeft;
+            const startTop = draggedPiece.offsetTop;
+            
+            function handleMouseMove(e) {
+                const deltaX = e.clientX - startX;
+                const deltaY = e.clientY - startY;
+                draggedPiece.style.left = (startLeft + deltaX) + 'px';
+                draggedPiece.style.top = (startTop + deltaY) + 'px';
+            }
+            
+            function handleMouseUp() {
+                draggedPiece.classList.remove('dragging');
+                checkPosition(draggedPiece);
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', handleMouseUp);
+                draggedPiece = null;
+            }
+            
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+
+        function checkPosition(piece) {
+            const pieceRect = piece.getBoundingClientRect();
+            const containerRect = puzzleContainer.getBoundingClientRect();
+            
+            const relativeLeft = pieceRect.left - containerRect.left;
+            const relativeTop = pieceRect.top - containerRect.top;
+            
+            const pieceWidth = pieceRect.width;
+            const pieceHeight = pieceRect.height;
+            
+            const correctCol = parseInt(piece.dataset.correctCol);
+            const correctRow = parseInt(piece.dataset.correctRow);
+            
+            const correctLeft = correctCol * pieceWidth;
+            const correctTop = correctRow * pieceHeight;
+            
+            const tolerance = Math.min(pieceWidth, pieceHeight) * 0.3;
+            
+            if (Math.abs(relativeLeft - correctLeft) < tolerance && 
+                Math.abs(relativeTop - correctTop) < tolerance) {
+                piece.style.left = correctLeft + 'px';
+                piece.style.top = correctTop + 'px';
+                piece.classList.add('correct');
+                debug('ピース正解！');
+                
+                checkCompletion();
+            }
+        }
+
+        function shufflePieces() {
+            const positions = [];
+            for (let i = 0; i < puzzlePieces.length; i++) {
+                positions.push({
+                    left: Math.random() * (puzzleContainer.offsetWidth - puzzlePieces[i].offsetWidth),
+                    top: Math.random() * (puzzleContainer.offsetHeight - puzzlePieces[i].offsetHeight)
+                });
+            }
+            
+            puzzlePieces.forEach((piece, index) => {
+                piece.style.left = positions[index].left + 'px';
+                piece.style.top = positions[index].top + 'px';
+            });
+        }
+
+        function checkCompletion() {
+            const correctPieces = document.querySelectorAll('.puzzle-piece.correct');
+            if (correctPieces.length === gridSize * gridSize) {
+                clearInterval(timerInterval);
+                const completionTime = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('completionTime').textContent = `完成時間: ${completionTime}秒`;
+                document.getElementById('completionMessage').style.display = 'block';
+                createConfetti();
+            }
+        }
+
+        function createConfetti() {
+            const colors = ['#ff006e', '#8338ec', '#3a86ff', '#06ffa5', '#ffbe0b', '#fb5607'];
+            for (let i = 0; i < 30; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 5000);
+                }, i * 50);
+            }
+        }
+
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            document.getElementById('timer').textContent = `時間: ${elapsed}秒`;
+        }
+
+        function resetGame() {
+            document.getElementById('completionMessage').style.display = 'none';
+            startPuzzle(gridSize);
+        }
+
+        function changeImage() {
+            document.getElementById('completionMessage').style.display = 'none';
+            uploadSection.style.display = 'block';
+            gameContainer.style.display = 'none';
+            fileInput.value = '';
+            clearInterval(timerInterval);
+        }
+
+        // 初期化時のデバッグ
+        debug('アプリ起動完了');
+    </script>
+</body>
+</html>
